@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="user-scalable=0, initial-scale=1,minimum-scale=1, maximum-scale=1, width=device-width, minimal-ui=1"> <!--모바일 용 전체 화면에 html을 삽입하는 메타 태그-->
     <title>HTML5 Game</title>
     <script src="./js/phaser.min.js"></script>
     <style type="text/css">
@@ -17,8 +18,14 @@
     * */
     var config = {
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+            //width: window.innerWidth,
+            //height: window.innerHeight
+            width: 800,
+            height: 600
+        },
         physics: {
             default: 'arcade',
             arcade: {
@@ -33,24 +40,40 @@
         }
     };
 
-    var game = new Phaser.Game(config);
-    var score = 0;
-    var scoreText = "";
-    var player = null;
-    var platforms = null;
-    var cursors = null;
-    var bombs = null;
-    var stars = null;
+    let game = null;
+    let isMobile=navigator.userAgent.indexOf("Mobile");
 
+    if(isMobile>-1){
+        isMobile=true;
+    }else{
+        isMobile=false;
+    }
 
+    // 모바일 여부 체크
+    if(isMobile){ //mobile device
+        game = new Phaser.Game(config);
+    }else{
+        game = new Phaser.Game(config);
+    }
+
+    let score = 0;
+    let scoreText = "";
+    let player = null;
+    let platforms = null;
+    let cursors = null;
+    let bombs = null;
+    let stars = null;
+    let gameOver = false;
 
     //게임에 필요한 데이터 로드
     function preload (){
-        this.load.image('sky', 'assets/sky.png');
-        this.load.image('ground', 'assets/platform.png');
-        this.load.image('star', 'assets/star.png');
-        this.load.image('bomb', 'assets/bomb.png');
-        this.load.spritesheet('dude', 'assets/dude.png',{ frameWidth: 32, frameHeight: 48 });
+        this.load.setPath('assets'); //이미지 전체 경로 설정
+        this.load.image('sky');
+        this.load.image('ground','platform.png'); //이미지 파일명과 매핑 안될때 바꿀수 있음.
+        this.load.image('star');
+        this.load.image('bomb');
+        this.load.image([ 'left', 'right', 'jump']);
+        this.load.spritesheet('dude', 'dude.png',{ frameWidth: 32, frameHeight: 48 });
     }
 
     //게임 처음 실행시 수행되는 함수
@@ -70,7 +93,27 @@
         player.setBounce(0.2);
         player.setCollideWorldBounds(true);
 
+        //버튼처리
+        this.input.addPointer(3);
+        let left = this.add.image(0, 0, 'left').setInteractive();
+        let right = this.add.image(0, 0, 'right').setInteractive();
+        let jump = this.add.image(0, 0, 'jump').setInteractive();
 
+        Phaser.Actions.GridAlign([ left, right, jump], {
+            width: 6,
+            cellWidth: 132,
+            cellHeight: 200,
+            x: 68,
+            y: 600
+        });
+
+        //리사이즈시 화면 처리 가능
+        this.scale.on('resize', function (gameSize) {
+            let width = gameSize.width;
+            let height = gameSize.height;
+
+            this.cameras.resize(width, height);
+        }, this);
 
         this.anims.create({
             key: 'left',
@@ -107,36 +150,82 @@
         this.physics.add.collider(player,platforms);
         this.physics.add.collider(stars, platforms);
         this.physics.add.collider(bombs, platforms);
-        this.physics.add.collider(player, bombs, hitBomb, null, this);
+        this.physics.add.collider(player, bombs, hitBomb, hitBombCallBack, this);
         //Overlaps
-        this.physics.add.overlap(player, stars, collectStar, null, this);
+        this.physics.add.overlap(player, stars, collectStar, starCallBack, this);
         //Keyboard setup
         cursors = this.input.keyboard.createCursorKeys();
 
+    }
+
+    //별먹을때 마다 콜백
+    function starCallBack() {
+
+    }
+
+    //폭탄맞았을때 콜백
+    function hitBombCallBack() {
 
     }
 
     //프레임워크에서 주기적으로 수행하는 함수
     function update ()
     {
-        if (cursors.left.isDown)
-        {
-            player.setVelocityX(-160);
-            player.anims.play('left', true);
-        }
-        else if (cursors.right.isDown)
-        {
-            player.setVelocityX(160);
-            player.anims.play('right', true);
-        }
-        else
-        {
-            player.setVelocityX(0);
-            player.anims.play('turn');
-        }
-        if (cursors.up.isDown && player.body.touching.down)
-        {
-            player.setVelocityY(-330);
+        if(isMobile) { //mobile device
+
+            //touch down
+            this.input.on('gameobjectdown', function (pointer, gameObject) {
+                console.log('gameObject',gameObject);
+
+                if(gameObject.texture.key == 'left'){
+                    player.setVelocityX(-160);
+                    player.anims.play('left', true);
+                }else if(gameObject.texture.key == 'right'){
+                    player.setVelocityX(160);
+                    player.anims.play('right', true);
+                }else{
+                    player.setVelocityX(0);
+                    player.anims.play('turn');
+                }
+
+                if(gameObject.texture.key == 'jump'){
+                    player.setVelocityY(-330);
+                }
+
+                gameObject.setTintFill(0xffff00, 0xffff00, 0xff0000, 0xff0000);
+
+            });
+
+            //touch up
+            this.input.on('gameobjectup', function (pointer, gameObject) {
+
+                console.log('up',gameObject);
+                player.setVelocityX(0);
+                player.anims.play('turn');
+                gameObject.clearTint();
+            });
+
+        }else{
+            //키보드 처리
+            if (cursors.left.isDown)
+            {
+                player.setVelocityX(-160);
+                player.anims.play('left', true);
+            }
+            else if (cursors.right.isDown)
+            {
+                player.setVelocityX(160);
+                player.anims.play('right', true);
+            }
+            else
+            {
+                player.setVelocityX(0);
+                player.anims.play('turn');
+            }
+            if (cursors.up.isDown && player.body.touching.down)
+            {
+                player.setVelocityY(-330);
+            }
         }
     }
 
@@ -151,20 +240,28 @@
             stars.children.iterate(function (child) {
                 child.enableBody(true, child.x, 0, true, true);
             });
-            var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
-            var bomb = bombs.create(x, 16, 'bomb');
+            let x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+            let bomb = bombs.create(x, 16, 'bomb');
             bomb.setBounce(1);
             bomb.setCollideWorldBounds(true);
             bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
             bomb.allowGravity = false;
         }
     }
+
+    //폭탄 맞았을때 호출 함수
     function hitBomb(player, bomb){
         this.physics.pause();
-        player.setTint(0xff0000);
+        player.setTint(0xff0000); //붉은색
         player.anims.play('turn');
         gameOver = true;
     }
+
+    window.addEventListener('resize', function (event) {
+
+        game.scale.resize(window.innerWidth, window.innerHeight);
+
+    }, false);
 </script>
 <body>
 
