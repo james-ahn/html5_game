@@ -72,7 +72,8 @@
         this.load.image('ground','platform.png'); //이미지 파일명과 매핑 안될때 바꿀수 있음.
         this.load.image('star');
         this.load.image('bomb');
-        this.load.image([ 'left', 'right', 'jump']);
+        this.load.image('jump');
+        this.load.image([ 'left', 'right']);
         this.load.spritesheet('dude', 'dude.png',{ frameWidth: 32, frameHeight: 48 });
     }
 
@@ -97,14 +98,14 @@
         this.input.addPointer(3);
         let left = this.add.image(0, 0, 'left').setInteractive();
         let right = this.add.image(0, 0, 'right').setInteractive();
-        let jump = this.add.image(0, 0, 'jump').setInteractive();
+        this.add.image(700, 560, 'jump').setInteractive();
 
-        Phaser.Actions.GridAlign([ left, right, jump], {
+        Phaser.Actions.GridAlign([ left, right], {
             width: 6,
             cellWidth: 132,
             cellHeight: 200,
             x: 68,
-            y: 600
+            y: 630
         });
 
         //리사이즈시 화면 처리 가능
